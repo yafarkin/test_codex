@@ -7,16 +7,38 @@
   <style>
     body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #222; }
     canvas { background: #000; }
+    #game { display: flex; }
+    #sidebar { color: #fff; font-family: sans-serif; margin-left: 20px; }
   </style>
 </head>
 <body>
-  <canvas id="tetris" width="240" height="400"></canvas>
+  <div id="game">
+    <canvas id="tetris" width="240" height="400"></canvas>
+    <div id="sidebar">
+      <div>Очки: <span id="score">0</span></div>
+      <canvas id="next" width="80" height="80"></canvas>
+    </div>
+  </div>
   <script>
     const canvas = document.getElementById('tetris');
     const context = canvas.getContext('2d');
     context.scale(20, 20);
+const nextCanvas = document.getElementById("next");
+const nextContext = nextCanvas.getContext("2d");
+nextContext.scale(20, 20);
+
+function updateScore() {
+  document.getElementById("score").textContent = player.score;
+}
+
+function updateNext() {
+  nextContext.fillStyle = "#000";
+  nextContext.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
+  drawMatrix(player.next, {x: 1, y: 1}, nextContext);
+}
 
     function arenaSweep() {
+      let rowCount = 1;
       outer: for (let y = arena.length - 1; y > 0; --y) {
         for (let x = 0; x < arena[y].length; ++x) {
           if (arena[y][x] === 0) {
@@ -26,6 +48,12 @@
         const row = arena.splice(y, 1)[0].fill(0);
         arena.unshift(row);
         ++y;
+
+        player.score += rowCount * 10;
+        rowCount *= 2;
+      }
+      if (rowCount > 1) {
+        updateScore();
       }
     }
 
@@ -104,14 +132,14 @@
       drawMatrix(player.matrix, player.pos);
     }
 
-    function drawMatrix(matrix, offset) {
+    function drawMatrix(matrix, offset, ctx = context) {
       matrix.forEach((row, y) => {
         row.forEach((value, x) => {
           if (value !== 0) {
-            context.fillStyle = colors[value];
-            context.fillRect(x + offset.x,
-                             y + offset.y,
-                             1, 1);
+            ctx.fillStyle = colors[value];
+            ctx.fillRect(x + offset.x,
+                         y + offset.y,
+                         1, 1);
           }
         });
       });
@@ -147,13 +175,20 @@
 
     function playerReset() {
       const pieces = 'TJLOSZI';
-      player.matrix = createPiece(pieces[pieces.length * Math.random() | 0]);
+      if (!player.next) {
+        player.next = createPiece(pieces[pieces.length * Math.random() | 0]);
+      }
+      player.matrix = player.next;
+      player.next = createPiece(pieces[pieces.length * Math.random() | 0]);
       player.pos.y = 0;
       player.pos.x = (arena[0].length / 2 | 0) -
                      (player.matrix[0].length / 2 | 0);
       if (collide(arena, player)) {
         arena.forEach(row => row.fill(0));
+        player.score = 0;
       }
+      updateScore();
+      updateNext();
     }
 
     function playerRotate(dir) {
@@ -215,6 +250,8 @@
     const player = {
       pos: {x: 0, y: 0},
       matrix: null,
+      next: null,
+      score: 0,
     };
 
     document.addEventListener('keydown', event => {
